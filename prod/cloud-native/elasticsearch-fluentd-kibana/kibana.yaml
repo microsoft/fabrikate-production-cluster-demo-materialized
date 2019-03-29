@@ -1,0 +1,81 @@
+---
+apiVersion: v1
+data:
+  kibana.yml: |
+    elasticsearch.url: http://elasticsearch-client.elasticsearch.svc.cluster.local:9200
+    server.host: "0"
+    server.name: kibana
+kind: ConfigMap
+metadata:
+  labels:
+    app: kibana
+    chart: kibana-2.0.0
+    heritage: Tiller
+    release: kibana
+  name: kibana
+  namespace: kibana
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kibana
+    chart: kibana-2.0.0
+    heritage: Tiller
+    release: kibana
+  name: kibana
+  namespace: kibana
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 5601
+  selector:
+    app: kibana
+    release: kibana
+  type: ClusterIP
+
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: kibana
+    chart: kibana-2.0.0
+    heritage: Tiller
+    release: kibana
+  name: kibana
+  namespace: kibana
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  template:
+    metadata:
+      annotations:
+        checksum/config: ad1caffdd25e79c58567e996d861248f3f55b4bd56b80e610587c2aa5998e71b
+      labels:
+        app: kibana
+        release: kibana
+    spec:
+      containers:
+      - env: null
+        image: docker.elastic.co/kibana/kibana-oss:6.6.1
+        imagePullPolicy: IfNotPresent
+        name: kibana
+        ports:
+        - containerPort: 5601
+          name: kibana
+          protocol: TCP
+        resources: {}
+        volumeMounts:
+        - mountPath: /usr/share/kibana/config/kibana.yml
+          name: kibana
+          subPath: kibana.yml
+      serviceAccountName: default
+      tolerations: []
+      volumes:
+      - configMap:
+          name: kibana
+        name: kibana
+

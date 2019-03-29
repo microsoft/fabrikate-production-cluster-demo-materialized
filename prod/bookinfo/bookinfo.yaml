@@ -1,0 +1,355 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    istio-injection: enabled
+  name: bookinfo
+  namespace: bookinfo
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: details
+    service: details
+  name: details
+  namespace: bookinfo
+spec:
+  ports:
+  - name: http
+    port: 9080
+  selector:
+    app: details
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: details
+    version: v1
+  name: details-v1
+  namespace: bookinfo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: details
+        version: v1
+    spec:
+      containers:
+      - image: istio/examples-bookinfo-details-v1:1.10.1
+        imagePullPolicy: IfNotPresent
+        name: details
+        ports:
+        - containerPort: 9080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: productpage
+    service: productpage
+  name: productpage
+  namespace: bookinfo
+spec:
+  ports:
+  - name: http
+    port: 9080
+  selector:
+    app: productpage
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: productpage
+    version: v1
+  name: productpage-v1
+  namespace: bookinfo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: productpage
+        version: v1
+    spec:
+      containers:
+      - image: istio/examples-bookinfo-productpage-v1:1.10.1
+        imagePullPolicy: IfNotPresent
+        name: productpage
+        ports:
+        - containerPort: 9080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ratings
+    service: ratings
+  name: ratings
+  namespace: bookinfo
+spec:
+  ports:
+  - name: http
+    port: 9080
+  selector:
+    app: ratings
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: ratings
+    version: v1
+  name: ratings-v1
+  namespace: bookinfo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ratings
+        version: v1
+    spec:
+      containers:
+      - image: istio/examples-bookinfo-ratings-v1:1.10.1
+        imagePullPolicy: IfNotPresent
+        name: ratings
+        ports:
+        - containerPort: 9080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: reviews
+    service: reviews
+  name: reviews
+  namespace: bookinfo
+spec:
+  ports:
+  - name: http
+    port: 9080
+  selector:
+    app: reviews
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: reviews
+    version: v1
+  name: reviews-v1
+  namespace: bookinfo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: reviews
+        version: v1
+    spec:
+      containers:
+      - image: istio/examples-bookinfo-reviews-v1:1.10.1
+        imagePullPolicy: IfNotPresent
+        name: reviews
+        ports:
+        - containerPort: 9080
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: reviews
+    version: v2
+  name: reviews-v2
+  namespace: bookinfo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: reviews
+        version: v2
+    spec:
+      containers:
+      - image: istio/examples-bookinfo-reviews-v2:1.10.1
+        imagePullPolicy: IfNotPresent
+        name: reviews
+        ports:
+        - containerPort: 9080
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: reviews
+    version: v3
+  name: reviews-v3
+  namespace: bookinfo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: reviews
+        version: v3
+    spec:
+      containers:
+      - image: istio/examples-bookinfo-reviews-v3:1.10.1
+        imagePullPolicy: IfNotPresent
+        name: reviews
+        ports:
+        - containerPort: 9080
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: productpage
+  namespace: bookinfo
+spec:
+  host: productpage
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: reviews
+  namespace: bookinfo
+spec:
+  host: reviews
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  - labels:
+      version: v2
+    name: v2
+  - labels:
+      version: v3
+    name: v3
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: ratings
+  namespace: bookinfo
+spec:
+  host: ratings
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  - labels:
+      version: v2
+    name: v2
+  - labels:
+      version: v2-mysql
+    name: v2-mysql
+  - labels:
+      version: v2-mysql-vm
+    name: v2-mysql-vm
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: details
+  namespace: bookinfo
+spec:
+  host: details
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  - labels:
+      version: v2
+    name: v2
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: bookinfo-gateway
+  namespace: bookinfo
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - '*'
+    port:
+      name: http
+      number: 80
+      protocol: HTTP2
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: bookinfo
+  namespace: bookinfo
+spec:
+  gateways:
+  - bookinfo-gateway
+  hosts:
+  - '*'
+  http:
+  - match:
+    - uri:
+        exact: /productpage
+    - uri:
+        exact: /login
+    - uri:
+        exact: /logout
+    - uri:
+        prefix: /api/v1/products
+    route:
+    - destination:
+        host: productpage
+        port:
+          number: 9080
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+  namespace: bookinfo
+spec:
+  hosts:
+  - reviews
+  http:
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+      weight: 50
+    - destination:
+        host: reviews
+        subset: v2
+      weight: 25
+    - destination:
+        host: reviews
+        subset: v3
+      weight: 25
+

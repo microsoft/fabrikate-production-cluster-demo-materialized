@@ -1,0 +1,1037 @@
+---
+apiVersion: v1
+data:
+  alertmanager.yml: |
+    global: {}
+    receivers:
+    - name: default-receiver
+    route:
+      group_interval: 5m
+      group_wait: 10s
+      receiver: default-receiver
+      repeat_interval: 3h
+kind: ConfigMap
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: alertmanager
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-alertmanager
+  namespace: prometheus
+
+---
+apiVersion: v1
+data:
+  alerts: |
+    {}
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 1m
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+    - job_name: prometheus
+      static_configs:
+      - targets:
+        - localhost:9090
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-apiservers
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: default;kubernetes;https
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_service_name
+        - __meta_kubernetes_endpoint_port_name
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes-cadvisor
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - job_name: kubernetes-service-endpoints
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: kubernetes_node
+    - honor_labels: true
+      job_name: prometheus-pushgateway
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - action: keep
+        regex: pushgateway
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+    - job_name: kubernetes-services
+      kubernetes_sd_configs:
+      - role: service
+      metrics_path: /probe
+      params:
+        module:
+        - http_2xx
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+      - source_labels:
+        - __address__
+        target_label: __param_target
+      - replacement: blackbox
+        target_label: __address__
+      - source_labels:
+        - __param_target
+        target_label: instance
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: kubernetes_pod_name
+
+    - job_name: 'istio-mesh'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-telemetry;prometheus
+    # Scrape config for envoy stats
+    - job_name: 'envoy-stats'
+      metrics_path: /stats/prometheus
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        action: keep
+        regex: '.*-envoy-prom'
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:15090
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod_name
+      metric_relabel_configs:
+      # Exclude some of the envoy metrics that have massive cardinality
+      # This list may need to be pruned further moving forward, as informed
+      # by performance and scalability testing.
+      - source_labels: [ cluster_name ]
+        regex: '(outbound|inbound|prometheus_stats).*'
+        action: drop
+      - source_labels: [ tcp_prefix ]
+        regex: '(outbound|inbound|prometheus_stats).*'
+        action: drop
+      - source_labels: [ listener_address ]
+        regex: '(.+)'
+        action: drop
+      - source_labels: [ http_conn_manager_listener_prefix ]
+        regex: '(.+)'
+        action: drop
+      - source_labels: [ http_conn_manager_prefix ]
+        regex: '(.+)'
+        action: drop
+      - source_labels: [ __name__ ]
+        regex: 'envoy_tls.*'
+        action: drop
+      - source_labels: [ __name__ ]
+        regex: 'envoy_tcp_downstream.*'
+        action: drop
+      - source_labels: [ __name__ ]
+        regex: 'envoy_http_(stats|admin).*'
+        action: drop
+      - source_labels: [ __name__ ]
+        regex: 'envoy_cluster_(lb|retry|bind|internal|max|original).*'
+        action: drop
+    - job_name: 'istio-policy'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-policy;http-monitoring
+    - job_name: 'istio-telemetry'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-telemetry;http-monitoring
+    - job_name: 'pilot'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-pilot;http-monitoring
+    - job_name: 'galley'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-galley;http-monitoring
+
+    alerting:
+      alertmanagers:
+      - kubernetes_sd_configs:
+          - role: pod
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          regex: prometheus
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: prometheus
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_component]
+          regex: alertmanager
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          regex:
+          action: drop
+  rules: |
+    {}
+kind: ConfigMap
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: alertmanager
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-alertmanager
+  namespace: prometheus
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+  storageClassName: managed-premium
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 64Gi
+  storageClassName: managed-premium
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: alertmanager
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-alertmanager
+  namespace: prometheus
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: kube-state-metrics
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-kube-state-metrics
+  namespace: prometheus
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: node-exporter
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-node-exporter
+  namespace: prometheus
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: pushgateway
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-pushgateway
+  namespace: prometheus
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: kube-state-metrics
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-kube-state-metrics
+  namespace: prometheus
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - nodes
+  - persistentvolumeclaims
+  - pods
+  - services
+  - resourcequotas
+  - replicationcontrollers
+  - limitranges
+  - persistentvolumeclaims
+  - persistentvolumes
+  - endpoints
+  - secrets
+  - configmaps
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  - ingresses
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses/status
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: kube-state-metrics
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-kube-state-metrics
+  namespace: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-kube-state-metrics
+subjects:
+- kind: ServiceAccount
+  name: prometheus-kube-state-metrics
+  namespace: prometheus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-server
+subjects:
+- kind: ServiceAccount
+  name: prometheus-server
+  namespace: prometheus
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: alertmanager
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-alertmanager
+  namespace: prometheus
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 9093
+  selector:
+    app: prometheus
+    component: alertmanager
+    release: prometheus
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: kube-state-metrics
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-kube-state-metrics
+  namespace: prometheus
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: prometheus
+    component: kube-state-metrics
+    release: prometheus
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: node-exporter
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-node-exporter
+  namespace: prometheus
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 9100
+    protocol: TCP
+    targetPort: 9100
+  selector:
+    app: prometheus
+    component: node-exporter
+    release: prometheus
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/probe: pushgateway
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: pushgateway
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-pushgateway
+  namespace: prometheus
+spec:
+  ports:
+  - name: http
+    port: 9091
+    protocol: TCP
+    targetPort: 9091
+  selector:
+    app: prometheus
+    component: pushgateway
+    release: prometheus
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: prometheus
+    component: server
+    release: prometheus
+  type: ClusterIP
+
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: node-exporter
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-node-exporter
+  namespace: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+      component: node-exporter
+      release: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        chart: prometheus-8.9.0
+        component: node-exporter
+        heritage: Tiller
+        release: prometheus
+    spec:
+      containers:
+      - args:
+        - --path.procfs=/host/proc
+        - --path.sysfs=/host/sys
+        image: prom/node-exporter:v0.17.0
+        imagePullPolicy: IfNotPresent
+        name: prometheus-node-exporter
+        ports:
+        - containerPort: 9100
+          hostPort: 9100
+          name: metrics
+        resources: {}
+        volumeMounts:
+        - mountPath: /host/proc
+          name: proc
+          readOnly: true
+        - mountPath: /host/sys
+          name: sys
+          readOnly: true
+      hostNetwork: true
+      hostPID: true
+      serviceAccountName: prometheus-node-exporter
+      volumes:
+      - hostPath:
+          path: /proc
+        name: proc
+      - hostPath:
+          path: /sys
+        name: sys
+  updateStrategy:
+    type: RollingUpdate
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: alertmanager
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-alertmanager
+  namespace: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: alertmanager
+      release: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        chart: prometheus-8.9.0
+        component: alertmanager
+        heritage: Tiller
+        release: prometheus
+    spec:
+      containers:
+      - args:
+        - --config.file=/etc/config/alertmanager.yml
+        - --storage.path=/data
+        - --cluster.advertise-address=$(POD_IP):6783
+        - --web.external-url=/
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        image: prom/alertmanager:v0.15.3
+        imagePullPolicy: IfNotPresent
+        name: prometheus-alertmanager
+        ports:
+        - containerPort: 9093
+        readinessProbe:
+          httpGet:
+            path: /#/status
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+        - mountPath: /data
+          name: storage-volume
+          subPath: ""
+      - args:
+        - --volume-dir=/etc/config
+        - --webhook-url=http://127.0.0.1:9093/-/reload
+        image: jimmidyson/configmap-reload:v0.2.2
+        imagePullPolicy: IfNotPresent
+        name: prometheus-alertmanager-configmap-reload
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+          readOnly: true
+      serviceAccountName: prometheus-alertmanager
+      volumes:
+      - configMap:
+          name: prometheus-alertmanager
+        name: config-volume
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: prometheus-alertmanager
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: kube-state-metrics
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-kube-state-metrics
+  namespace: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: kube-state-metrics
+      release: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        chart: prometheus-8.9.0
+        component: kube-state-metrics
+        heritage: Tiller
+        release: prometheus
+    spec:
+      containers:
+      - image: quay.io/coreos/kube-state-metrics:v1.5.0
+        imagePullPolicy: IfNotPresent
+        name: prometheus-kube-state-metrics
+        ports:
+        - containerPort: 8080
+          name: metrics
+        resources: {}
+      serviceAccountName: prometheus-kube-state-metrics
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: pushgateway
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-pushgateway
+  namespace: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: pushgateway
+      release: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        chart: prometheus-8.9.0
+        component: pushgateway
+        heritage: Tiller
+        release: prometheus
+    spec:
+      containers:
+      - args: null
+        image: prom/pushgateway:v0.6.0
+        imagePullPolicy: IfNotPresent
+        name: prometheus-pushgateway
+        ports:
+        - containerPort: 9091
+        readinessProbe:
+          httpGet:
+            path: /#/status
+            port: 9091
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        resources: {}
+      serviceAccountName: prometheus-pushgateway
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+    chart: prometheus-8.9.0
+    component: server
+    heritage: Tiller
+    release: prometheus
+  name: prometheus-server
+  namespace: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: server
+      release: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        chart: prometheus-8.9.0
+        component: server
+        heritage: Tiller
+        release: prometheus
+    spec:
+      containers:
+      - args:
+        - --volume-dir=/etc/config
+        - --webhook-url=http://127.0.0.1:9090/-/reload
+        image: jimmidyson/configmap-reload:v0.2.2
+        imagePullPolicy: IfNotPresent
+        name: prometheus-server-configmap-reload
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+          readOnly: true
+      - args:
+        - --config.file=/etc/config/prometheus.yml
+        - --storage.tsdb.path=/data
+        - --web.console.libraries=/etc/prometheus/console_libraries
+        - --web.console.templates=/etc/prometheus/consoles
+        - --web.enable-lifecycle
+        image: prom/prometheus:v2.8.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+        name: prometheus-server
+        ports:
+        - containerPort: 9090
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+        - mountPath: /data
+          name: storage-volume
+          subPath: ""
+      initContainers:
+      - command:
+        - chown
+        - -R
+        - 65534:65534
+        - /data
+        image: busybox:latest
+        imagePullPolicy: IfNotPresent
+        name: init-chown-data
+        resources: {}
+        volumeMounts:
+        - mountPath: /data
+          name: storage-volume
+          subPath: ""
+      serviceAccountName: prometheus-server
+      terminationGracePeriodSeconds: 300
+      volumes:
+      - configMap:
+          name: prometheus-server
+        name: config-volume
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: prometheus-server
+

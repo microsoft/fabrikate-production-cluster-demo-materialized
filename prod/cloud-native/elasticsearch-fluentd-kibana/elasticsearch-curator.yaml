@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+data:
+  action_file.yml: |-
+    ---
+    actions:
+      1:
+        action: delete_indices
+        description: "Clean up ES by deleting old indices"
+        options:
+          timeout_override:
+          continue_if_exception: False
+          disable_action: False
+          ignore_empty_list: True
+        filters:
+        - filtertype: age
+          source: name
+          direction: older
+          timestring: '%Y.%m.%d'
+          unit: days
+          unit_count: 7
+          field:
+          stats_result:
+          epoch:
+          exclude: False
+  config.yml: |-
+    ---
+    client:
+      hosts:
+        - elasticsearch-client.elasticsearch.svc.cluster.local
+      port: 9200
+      use_ssl: False
+kind: ConfigMap
+metadata:
+  labels:
+    app: elasticsearch-curator
+    chart: elasticsearch-curator-1.2.1
+    heritage: Tiller
+    release: elasticsearch-curator
+  name: elasticsearch-curator-config
+  namespace: elasticsearch
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  labels:
+    app: elasticsearch-curator
+    chart: elasticsearch-curator-1.2.1
+    heritage: Tiller
+    release: elasticsearch-curator
+  name: elasticsearch-curator
+  namespace: elasticsearch
+spec:
+  jobTemplate:
+    metadata:
+      labels:
+        app: elasticsearch-curator
+        release: elasticsearch-curator
+    spec:
+      template:
+        metadata:
+          labels:
+            app: elasticsearch-curator
+            release: elasticsearch-curator
+        spec:
+          containers:
+          - args:
+            - --config
+            - /etc/es-curator/config.yml
+            - /etc/es-curator/action_file.yml
+            command:
+            - curator
+            env: null
+            image: quay.io/pires/docker-elasticsearch-curator:5.5.4
+            imagePullPolicy: IfNotPresent
+            name: elasticsearch-curator
+            resources: {}
+            volumeMounts:
+            - mountPath: /etc/es-curator
+              name: config-volume
+          restartPolicy: Never
+          volumes:
+          - configMap:
+              name: elasticsearch-curator-config
+            name: config-volume
+  schedule: 0 1 * * *
+
