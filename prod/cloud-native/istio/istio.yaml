@@ -335,7 +335,7 @@ data:
       tracing:
         zipkin:
           # Address of the Zipkin collector
-          address: zipkin.istio-system:9411
+          address: zipkin.jaeger.svc.cluster.local:9411
       #
       # Mutual TLS authentication between sidecars and istio control plane.
       controlPlaneAuthPolicy: NONE
@@ -1837,7 +1837,7 @@ spec:
           - --serviceCluster
           - istio-ingressgateway
           - --zipkinAddress
-          - zipkin:9411
+          - zipkin.jaeger.svc.cluster.local:9411
           - --proxyAdminPort
           - "15000"
           - --statusPort
@@ -2145,7 +2145,7 @@ spec:
           - --configStoreURL=mcp://istio-galley.istio-system.svc:9901
           - --configDefaultNamespace=istio-system
           - --useAdapterCRDs=false
-          - --trace_zipkin_url=http://zipkin:9411/api/v1/spans
+          - --trace_zipkin_url=http://zipkin.jaeger.svc.cluster.local:9411/api/v1/spans
         env:
         - name: GODEBUG
           value: "gctrace=1"
@@ -2313,7 +2313,7 @@ spec:
           - --configStoreURL=mcp://istio-galley.istio-system.svc:9901
           - --configDefaultNamespace=istio-system
           - --useAdapterCRDs=false
-          - --trace_zipkin_url=http://zipkin:9411/api/v1/spans
+          - --trace_zipkin_url=http://zipkin.jaeger.svc.cluster.local:9411/api/v1/spans
           - --averageLatencyThreshold
           - 100ms
           - --loadsheddingMode
@@ -2474,7 +2474,7 @@ spec:
           - name: PILOT_PUSH_THROTTLE
             value: "100"
           - name: PILOT_TRACE_SAMPLING
-            value: "1"
+            value: "100"
           - name: PILOT_DISABLE_XDS_MARSHALING_TO_ANY
             value: "1"
           resources:
