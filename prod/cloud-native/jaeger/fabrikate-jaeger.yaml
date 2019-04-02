@@ -20,5 +20,7 @@ spec:
     protocol: TCP
     targetPort: 9411
   selector:
-    app: jaeger
+    app.kubernetes.io/instance: jaeger
+    app.kubernetes.io/component: collector
   type: ClusterIP
+
