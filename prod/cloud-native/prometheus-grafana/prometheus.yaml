@@ -33,16 +33,7 @@ data:
   alerts: |
     groups:
     - name: kubernetes-absent
-      rules:
-      - alert: CoreDNSDown
-        annotations:
-          message: CoreDNS has disappeared from Prometheus target discovery.
-          runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-corednsdown
-        expr: |
-          absent(up{job="kube-dns"} == 1)
-        for: 15m
-        labels:
-          severity: critical
+      rules: null
     - name: kubernetes-apps
       rules:
       - alert: KubePodCrashLooping
@@ -350,7 +341,7 @@ data:
             to the limit of 30.
           runbook_url: https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-kubelettoomanypods
         expr: |
-          kubelet_running_pod_count{job="kubelet"} > 30 * 0.6
+          kubelet_running_pod_count{kubernetes_io_role="agent"} > 30 * 0.6
         for: 1m
         labels:
           severity: warning
