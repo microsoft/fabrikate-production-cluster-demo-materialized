@@ -301,6 +301,18 @@ spec:
       name: http
       number: 80
       protocol: HTTP2
+    tls:
+      httpsRedirect: true
+  - hosts:
+    - '*'
+    port:
+      name: https
+      number: 443
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      privateKey: /etc/istio/ingressgateway-certs/tls.key
+      serverCertificate: /etc/istio/ingressgateway-certs/tls.crt
 
 ---
 apiVersion: networking.istio.io/v1alpha3
