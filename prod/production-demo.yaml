@@ -33,7 +33,7 @@ metadata:
     app.kubernetes.io/component: hotrod
     app.kubernetes.io/instance: jaeger
   name: jaeger-hotrod
-  namespace: jaeger
+  namespace: hotrod
 spec:
   replicas: 1
   selector:
@@ -70,13 +70,21 @@ spec:
 
 ---
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: hotrod
+  labels:
+    istio-injection: enabled
+
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
     app.kubernetes.io/component: hotrod
     app.kubernetes.io/instance: jaeger
   name: jaeger-hotrod
-  namespace: jaeger
+  namespace: hotrod
 spec:
   ports:
   - name: hotrod
@@ -92,6 +100,7 @@ spec:
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
+  namespace: hotrod
   name: hotrod-service
 spec:
   hosts:
@@ -104,7 +113,7 @@ spec:
             exact: /hotrod
       route:
         - destination:
-            host: jaeger-hotrod.jaeger.svc.cluster.local
+            host: jaeger-hotrod.hotrod.svc.cluster.local
             port:
               number: 80
 
