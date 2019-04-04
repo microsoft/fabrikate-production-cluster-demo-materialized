@@ -77,10 +77,28 @@ kind: ConfigMap
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     heritage: Tiller
     release: elasticsearch
   name: elasticsearch
+  namespace: elasticsearch
+
+---
+apiVersion: v1
+data:
+  run.sh: |-
+    @test "Test Access and Health" {
+      curl -D - http://elasticsearch-client:9200
+      curl -D - http://elasticsearch-client:9200/_cluster/health?wait_for_status=green
+    }
+kind: ConfigMap
+metadata:
+  labels:
+    app: elasticsearch
+    chart: elasticsearch-1.24.0
+    heritage: Tiller
+    release: elasticsearch
+  name: elasticsearch-test
   namespace: elasticsearch
 
 ---
@@ -89,7 +107,7 @@ kind: ServiceAccount
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: client
     heritage: Tiller
     release: elasticsearch
@@ -102,7 +120,7 @@ kind: ServiceAccount
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: data
     heritage: Tiller
     release: elasticsearch
@@ -115,7 +133,7 @@ kind: ServiceAccount
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: master
     heritage: Tiller
     release: elasticsearch
@@ -128,7 +146,7 @@ kind: Service
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: client
     heritage: Tiller
     release: elasticsearch
@@ -151,7 +169,7 @@ kind: Service
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: master
     heritage: Tiller
     release: elasticsearch
@@ -168,12 +186,60 @@ spec:
     release: elasticsearch
 
 ---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    helm.sh/hook: test-success
+  labels:
+    app: elasticsearch
+    chart: elasticsearch-1.24.0
+    heritage: Tiller
+    release: elasticsearch
+  name: elasticsearch-test
+  namespace: elasticsearch
+spec:
+  containers:
+  - command:
+    - /tools/bats/bats
+    - -t
+    - /tests/run.sh
+    image: dduportal/bats:0.4.0
+    name: elasticsearch-test
+    volumeMounts:
+    - mountPath: /tests
+      name: tests
+      readOnly: true
+    - mountPath: /tools
+      name: tools
+  initContainers:
+  - command:
+    - bash
+    - -c
+    - |
+      set -ex
+      # copy bats to tools dir
+      cp -R /usr/local/libexec/ /tools/bats/
+    image: dduportal/bats:0.4.0
+    name: test-framework
+    volumeMounts:
+    - mountPath: /tools
+      name: tools
+  restartPolicy: Never
+  volumes:
+  - configMap:
+      name: elasticsearch-test
+    name: tests
+  - emptyDir: {}
+    name: tools
+
+---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: client
     heritage: Tiller
     release: elasticsearch
@@ -269,7 +335,7 @@ kind: StatefulSet
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: data
     heritage: Tiller
     release: elasticsearch
@@ -408,7 +474,7 @@ kind: StatefulSet
 metadata:
   labels:
     app: elasticsearch
-    chart: elasticsearch-1.23.0
+    chart: elasticsearch-1.24.0
     component: master
     heritage: Tiller
     release: elasticsearch
