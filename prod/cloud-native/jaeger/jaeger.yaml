@@ -427,6 +427,6 @@ spec:
                 memory: 128Mi
           nodeSelector: {}
           restartPolicy: OnFailure
-  schedule: '*/5 * * * *'
+  schedule: 5 * * * *
   successfulJobsHistoryLimit: 5
 
