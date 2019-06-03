@@ -13,7 +13,7 @@ metadata:
   name: kured
   labels:
     app: kured
-    chart: kured-1.1.1
+    chart: kured-1.2.0
     release: kured
     heritage: Tiller
 rules:
@@ -43,7 +43,7 @@ metadata:
   name: kured
   labels:
     app: kured
-    chart: kured-1.1.1
+    chart: kured-1.2.0
     release: kured
     heritage: Tiller
 roleRef:
@@ -63,7 +63,7 @@ metadata:
   name: kured
   labels:
     app: kured
-    chart: kured-1.1.1
+    chart: kured-1.2.0
     release: kured
     heritage: Tiller
 rules:
@@ -81,7 +81,7 @@ metadata:
   name: kured
   labels:
     app: kured
-    chart: kured-1.1.1
+    chart: kured-1.2.0
     release: kured
     heritage: Tiller
 subjects:
@@ -101,7 +101,7 @@ metadata:
   namespace: kube-system
   labels:
     app: kured
-    chart: kured-1.1.1
+    chart: kured-1.2.0
     release: kured
     heritage: Tiller
 
@@ -123,7 +123,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: kured
-          image: "quay.io/weaveworks/kured:1.1.0"
+          image: "weaveworks/kured:1.2.0"
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true # Give permission to nsenter /proc/1/ns/mnt

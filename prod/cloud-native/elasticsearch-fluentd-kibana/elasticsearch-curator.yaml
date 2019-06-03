@@ -34,7 +34,7 @@ kind: ConfigMap
 metadata:
   labels:
     app: elasticsearch-curator
-    chart: elasticsearch-curator-1.4.0
+    chart: elasticsearch-curator-1.5.0
     heritage: Tiller
     release: elasticsearch-curator
   name: elasticsearch-curator-config
@@ -46,7 +46,7 @@ kind: CronJob
 metadata:
   labels:
     app: elasticsearch-curator
-    chart: elasticsearch-curator-1.4.0
+    chart: elasticsearch-curator-1.5.0
     heritage: Tiller
     release: elasticsearch-curator
   name: elasticsearch-curator
